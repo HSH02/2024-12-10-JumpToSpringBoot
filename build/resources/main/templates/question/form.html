@@ -1,0 +1,106 @@
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{common/layout}">
+<div layout:fragment="content" class="container">
+    <h5 class="my-3 border-bottom pb-2"
+        th:text="${questionRequestDTO.id == null ? '질문등록' : '질문수정'}">질문</h5>
+
+    <form id="questionForm" th:object="${questionRequestDTO}" method="post" onsubmit="submitForm(event)">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+        <input type="hidden" th:if="${questionRequestDTO.id != null}" th:field="*{id}">
+
+        <!-- 에러 메시지 -->
+        <div id="errorMessages" class="alert alert-danger" style="display: none;"></div>
+
+        <!-- 제출 폼-->
+        <div class="mb-3">
+            <label for="subject" class="form-label">제목</label>
+            <input type="text" th:field="*{subject}" class="form-control">
+        </div>
+        <div class="mb-3">
+            <label for="category" class="form-label">종류</label>
+            <select th:field="*{category}" id="category" class="form-control">
+                <option value="질문">질문</option>
+                <option value="강좌">강좌</option>
+                <option value="자유">자유</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="content" class="form-label">내용</label>
+            <textarea id="markdownEditor" th:field="*{content}" class="form-control" rows="10"></textarea>
+        </div>
+        <input type="submit" value="저장하기" class="btn btn-primary my-2">
+    </form>
+</div>
+<div layout:fragment="script">
+    <script type="application/javascript">
+        // TODO image add
+        document.addEventListener("DOMContentLoaded", function () {
+            var simplemde = new SimpleMDE({
+                element: document.getElementById("markdownEditor"),
+                placeholder: "여기에 내용을 입력하세요...",
+                spellChecker: false,
+                toolbar: [
+                    "bold", "italic", "heading", "|",
+                    "quote", "unordered-list", "ordered-list", "|",
+                    "link", "image", "preview", "fullscreen", "|",
+                    "guide"
+                ]
+            });
+
+            // 폼 제출 시, SimpleMDE의 내용을 textarea에 반영
+            const form = document.getElementById("questionForm");
+            form.addEventListener("submit", function () {
+                document.getElementById("markdownEditor").value = simplemde.value();
+            });
+        });
+
+        async function submitForm(event) {
+            event.preventDefault();
+            const errorDiv = document.getElementById('errorMessages');
+            const form = event.target;
+
+            const formData = {
+                subject: document.getElementById('subject').value,
+                content: document.getElementById('markdownEditor').value,
+                category: document.getElementById('category').value
+            };
+
+            // id hidden 필드가 있다면 수정 모드
+            const questionId = form.querySelector('input[name="id"]')?.value;
+            const isModify = questionId != null;
+
+            const csrfToken = form.querySelector('input[name="_csrf"]').value;
+
+            try {
+                const url = isModify
+                    ? `/api/v1/question/${questionId}`  // 수정 API
+                    : '/api/v1/question';               // 생성 API
+
+                const response = await fetch(url, {
+                    method: isModify ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    window.location.href = isModify         // 수정 시에는 해당 질문의 상세페이지로, 생성 시에는 목록으로
+                        ? `/question/detail/${questionId}`
+                        : '/';
+                } else {
+                    errorDiv.textContent = data.message;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorDiv.textContent = "서버 오류가 발생했습니다.";
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
+</div>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{common/layout}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입</title>
+</head>
+<body>
+<div layout:fragment="content" class="container my-3">
+    <div class="my-3 border-bottom">
+        <div>
+            <h4>회원가입</h4>
+        </div>
+    </div>
+    <form id="signupForm" th:object="${userRequestDTO}" onsubmit="submitForm(event)">
+        <!-- 에러 메시지 -->
+        <div id="errorMessages" class="alert alert-danger" style="display: none;"></div>
+
+        <!-- 사용자ID -->
+        <div class="mb-3">
+            <label for="username" class="form-label">사용자ID</label>
+            <input type="text" th:field="*{username}" class="form-control" id="username">
+        </div>
+
+        <!-- 비밀번호 -->
+        <div class="mb-3">
+            <label for="password1" class="form-label">비밀번호</label>
+            <input type="password" th:field="*{password1}" class="form-control" id="password1">
+        </div>
+
+        <!-- 비밀번호 확인 -->
+        <div class="mb-3">
+            <label for="password2" class="form-label">비밀번호 확인</label>
+            <input type="password" th:field="*{password2}" class="form-control" id="password2">
+        </div>
+
+        <!-- 이메일 -->
+        <div class="mb-3">
+            <label for="email" class="form-label">이메일</label>
+            <input type="email" th:field="*{email}" class="form-control" id="email">
+        </div>
+
+        <!-- 제출 버튼 -->
+        <button type="submit" class="btn btn-primary">회원가입</button>
+    </form>
+</div>
+
+<div layout:fragment="script">
+    <script type="application/javascript">
+        async function submitForm(event) {
+            event.preventDefault();
+            const errorDiv = document.getElementById('errorMessages');
+
+            const formData = {
+                username: document.getElementById('username').value,
+                password1: document.getElementById('password1').value,
+                password2: document.getElementById('password2').value,
+                email: document.getElementById('email').value
+            };
+
+            try {
+                const response = await fetch('/api/v1/user/signup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);  // 성공 메시지 출력
+                    window.location.href = '/';
+                } else {
+                    errorDiv.textContent = data.message;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = "서버 오류가 발생했습니다.";
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
+</div>
+</body>
+</html>

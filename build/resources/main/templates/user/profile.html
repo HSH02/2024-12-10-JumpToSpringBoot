@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{common/layout}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>프로필</title>
+</head>
+<body>
+<div layout:fragment="content" class="container my-3">
+
+    <!-- 프로필 정보 -->
+    <div class="border-bottom mb-4">
+        <h4>프로필</h4>
+    </div>
+
+    <div class="mb-4">
+        <!-- 사용자 ID -->
+        <div class="mb-3">
+            <label for="username" class="form-label">ID</label>
+            <input type="text" th:value="*{user.username}" class="form-control" id="username" disabled>
+        </div>
+
+        <!-- 이메일 -->
+        <div class="mb-3">
+            <label for="email" class="form-label">이메일</label>
+            <input type="email" th:value="*{user.email}" class="form-control" id="email" disabled>
+        </div>
+
+        <!-- 비밀번호 표시 및 변경 버튼 -->
+        <div class="mb-3">
+            <label for="password" class="form-label">비밀번호</label>
+            <div class="input-group">
+                <input type="password" value="********" class="form-control" id="password" disabled>
+                <button class="btn btn-outline-primary" type="button" id="changePasswordBtn">변경</button>
+            </div>
+        </div>
+
+        <!-- 비밀번호 변경 폼 (초기에는 숨김 처리) -->
+        <div class="mb-3" id="changePasswordForm" style="display: none;">
+            <label for="currentPassword" class="form-label">현재 비밀번호</label>
+            <input type="password" class="form-control mb-2" id="currentPassword" placeholder="현재 비밀번호를 입력하세요">
+
+            <label for="newPassword" class="form-label">새 비밀번호</label>
+            <input type="password" class="form-control mb-2" id="newPassword" placeholder="새 비밀번호를 입력하세요">
+
+            <label for="confirmNewPassword" class="form-label">새 비밀번호 확인</label>
+            <input type="password" class="form-control mb-2" id="confirmNewPassword" placeholder="새 비밀번호를 다시 입력하세요">
+
+            <div class="d-flex justify-content-end">
+                <button class="btn btn-secondary me-2" type="button" id="cancelChangeBtn">취소</button>
+                <button class="btn btn-primary" type="button" id="savePasswordBtn">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 최근 작성한 글 -->
+    <div class="border-bottom mb-4">
+        <h4>최근 작성한 글</h4>
+    </div>
+
+    <div>
+        <!-- 작성한 질문 -->
+        <div class="mb-4">
+            <label class="form-label">질문</label>
+            <ul class="list-group" th:if="${user.questions != null && !user.questions.isEmpty()}">
+                <li class="list-group-item" th:each="question : ${user.questions}">
+                    <a th:href="@{|/question/detail/${question.id}|}" th:text="${question.subject}"></a>
+                </li>
+            </ul>
+            <p class="text-muted" th:unless="${user.questions != null && !user.questions.isEmpty()}">
+                작성된 질문이 없습니다.
+            </p>
+        </div>
+
+        <!-- 작성한 답변 -->
+        <div class="mb-4">
+            <label class="form-label">답변</label>
+            <ul class="list-group" th:if="${user.answers != null && !user.answers.isEmpty()}">
+                <li class="list-group-item" th:each="answer : ${user.answers}">
+                    <a th:href="@{|/question/detail/${answer.questionId}|} + '#answer_' + ${answer.id}"
+                       th:text="${answer.content}"></a>
+                </li>
+            </ul>
+            <p class="text-muted" th:unless="${user.answers != null && !user.answers.isEmpty()}">
+                작성된 답변이 없습니다.
+            </p>
+        </div>
+
+        <!-- 작성한 댓글 -->
+        <div class="mb-4">
+            <label class="form-label">댓글</label>
+            <ul class="list-group" th:if="${user.comments != null && !user.comments.isEmpty()}">
+                <li class="list-group-item" th:each="comment : ${user.comments}">
+                    <a th:href="@{|/question/detail/${comment.questionId}|} + '#comment_' + ${comment.id}"
+                       th:text="${comment.content}"></a>
+                </li>
+            </ul>
+            <p class="text-muted" th:unless="${user.comments != null && !user.comments.isEmpty()}">
+                작성된 댓글이 없습니다.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+<div layout:fragment="script">
+    <script>
+
+        // 변경 버튼 클릭 시 폼 표시
+        document.getElementById("changePasswordBtn").addEventListener("click", function () {
+            document.getElementById("changePasswordForm").style.display = "block"; // 변경 폼 표시
+        });
+
+        // 취소 버튼 클릭 시 폼 숨기기
+        document.getElementById("cancelChangeBtn").addEventListener("click", function () {
+            document.getElementById("changePasswordForm").style.display = "none"; // 변경 폼 숨김
+        });
+
+        // CSRF
+        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+        // 저장 버튼 클릭 시 비밀번호 저장 로직 추가 (추후 구현 필요)
+        document.getElementById("savePasswordBtn").addEventListener("click", function () {
+            const currentPassword = document.getElementById("currentPassword").value.trim();
+            const newPassword = document.getElementById("newPassword").value.trim();
+            const confirmNewPassword = document.getElementById("confirmNewPassword").value.trim();
+
+            if (!currentPassword || !newPassword || !confirmNewPassword) {
+                alert("모든 비밀번호를 입력해 주세요.");
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                alert("새 비밀번호가 일치하지 않습니다.");
+                return;
+            }
+
+            console.log("현재 비밀번호:", currentPassword);
+            console.log("새 비밀번호:", newPassword);
+
+            const formData = { currentPassword, newPassword, confirmNewPassword };
+
+            try {
+                // 서버에 사용자 정보 전송
+                const response = fetch('/api/v1/user/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        [csrfHeader]: csrfToken
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                // 서버에서 받은 응답 처리하기
+                const result = response.json();
+
+                // 성공하면 페이지 이동, 실패하면 에러 메시지 표시
+                if (result.success) {
+                    alert(result.message);
+                    window.location.href = "/";
+                }
+            } catch (error) {
+                alert("비밀번호를 확인해주세요")
+            }
+        });
+    </script>
+</div>
+</body>
+</html>

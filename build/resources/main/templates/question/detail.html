@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{common/layout}" xmlns:sec="http://www.w3.org/1999/xhtml">
+<head>
+</head>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+
+<body>
+<div layout:fragment="content" class="container my-3">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <!-- 질문 폼 -->
+    <h2 class="border-bottom py-2" th:text="${question?.subject ?: '제목 없음'}"></h2>
+    <div class="card my-3">
+        <div class="card-body">
+            <div class="card-text" th:utext="${@commonUtil.markdown((question.content ?: '내용 없음'))}"></div>
+            <div class="d-flex justify-content-end">
+                <div th:if="${question?.modifyDate != null}" class="badge bg-light text-dark p-2 text-start mx-3">
+                    <div class="mb-2">modified at</div>
+                    <div th:if="${question.modifyDate != null}"
+                         th:text="${#temporals.format(question.modifyDate, 'yyyy-MM-dd HH:mm')}"></div>
+                </div>
+                <div class="badge bg-light text-dark p-2 text-start mx-3">
+                    <div class="mb-2">
+                        <span th:if="${question.authorName != null}"
+                              th:text="${question.authorName ?: '작성자 없음'}"></span>
+                    </div>
+                    <div th:text="${#temporals.format(question.createDate, 'yyyy-MM-dd HH:mm')}"></div>
+                </div>
+                <div class="badge bg-light text-dark p-2 text-start mx-3">
+                    <span th:if="${question.category != null}"
+                          th:text="'카테고리: ' + ${question.category}"></span>
+                </div>
+                <div class="badge bg-light text-dark p-2 text-start">
+                    <span th:text="'조회수: ' + ${question.viewCount}"></span>
+                </div>
+            </div>
+            <div class="my-3">
+                <!-- 질문 추천 버튼 -->
+                <a href="javascript:void(0);"
+                   th:data-uri="@{|/question/${question.id}/vote|}"
+                   class="vote-button recommend btn btn-sm btn-outline-secondary"
+                   data-id="${question.id}">
+                    추천
+                    <span class="badge rounded-pill bg-success" th:text="${question.voterCount}"></span>
+                </a>
+
+                <!-- 질문 수정 버튼 -->
+                <a th:href="@{|/question/modify/${question.id}|}"
+                   class="btn btn-sm btn-outline-secondary"
+                   sec:authorize="isAuthenticated()"
+                   th:if="${question.authorName != null and @commonUtil.getCurrentUsername(#authentication) == question.authorName}"
+                   th:text="수정"></a>
+
+                <!-- 질문 삭제 버튼 -->
+                <a href="javascript:void(0);"
+                   th:data-uri="@{|/question/${question.id}|}"
+                   class="delete btn btn-sm btn-outline-secondary"
+                   sec:authorize="isAuthenticated()"
+                   th:if="${question.authorName != null and @commonUtil.getCurrentUsername(#authentication) == question.authorName}"
+                   th:text="삭제"></a>
+            </div>
+
+            <!-- 질문 댓글 작성 폼 -->
+            <div class="comments-section border-top mt-3 pt-3">
+                <h6>댓글</h6>
+                <ul class="list-group">
+                    <li th:each="comment : ${questionComments}" class="list-group-item">
+                        <div th:id="|comment_${comment.id}|">
+                            <strong th:text="${comment.author.username}">작성자</strong>
+                            <small class="text-muted"
+                                   th:text="${#temporals.format(comment.createDate, 'yyyy-MM-dd HH:mm')}">작성일</small>
+                        </div>
+                        <p th:text="${comment.content}">댓글 내용</p>
+                    </li>
+                </ul>
+                <br>
+                <div sec:authorize="isAuthenticated()">
+                    <h6>댓글 작성</h6>
+                    <form class="comment-form mt-2" th:object="${commentRequestDTO}" data-type="question"
+                          th:data-id="${question.id}" onsubmit="submitComment(event)">
+                        <!--에러 메시지 전달-->
+                        <div class="alert alert-danger error-message" style="display: none;"></div>
+
+
+                        <!-- 댓글 내용 입력 -->
+                        <div class="input-group input-group-sm">
+                            <textarea name="content" class="form-control" placeholder="댓글을 입력하세요"></textarea>
+                            <button class="btn btn-outline-secondary" type="submit">등록</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!--  질문 댓글 작성 폼 끝 -->
+
+
+        </div>
+    </div>
+    <!--  질문 끝 -->
+
+
+    <!-- 답변 헤더 -->
+    <div class="d-flex justify-content-between align-items-center border-bottom my-3 py-2">
+        <!-- 답변 갯수 -->
+        <h5 class="mb-0" th:text="${question.answerCount != null ? question.answerCount : 0} + '개의 답변이 있습니다.'"></h5>
+
+        <!-- 답변 정렬 선택 -->
+        <form th:action="@{|/question/detail/${question.id}|}" method="get" id="sortForm">
+            <select class="form-select form-select-sm d-inline w-auto" name="sortKeyword" id="sortSelect">
+                <option th:value="createDate" th:selected="${sort == 'createDate'}">최신순</option>
+                <option th:value="voterCount" th:selected="${sort == 'voterCount'}">추천순</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- 답변 반복 시작-->
+    <div class="card my-3" th:if="${question.answers != null}" th:each="answer : ${question.answers.content}">
+        <a th:id="|answer_${answer.id}|"></a>
+        <div class="card-body">
+            <div class="card-text" th:utext="${answer.content}"></div>
+            <div class="d-flex justify-content-end">
+                <div th:if="${answer?.modifyDate != null}" class="badge bg-light text-dark p-2 text-start mx-3">
+                    <div class="mb-2">modified at</div>
+                    <div th:text="${#temporals.format(answer.modifyDate, 'yyyy-MM-dd HH:mm')}"></div>
+                </div>
+                <div class="badge bg-light text-dark p-2 text-start">
+                    <div class="mb-2">
+                    <span th:if="${answer?.authorName != null}"
+                          th:text="${answer.authorName ?: '작성자 없음'}"></span>
+                    </div>
+                    <div th:text="${#temporals.format(answer.createDate, 'yyyy-MM-dd HH:mm')}"></div>
+                </div>
+            </div>
+            <div class="my-3">
+                <!-- 답변 추천 버튼 -->
+                <a href="javascript:void(0);" class="recommend btn btn-sm btn-outline-secondary"
+                   th:data-uri="@{|/answer/vote/${answer.id}|}">
+                    추천
+                    <span class="badge rounded-pill bg-success" th:if="${answer.voterCount != null}"
+                          th:text="${answer.voterCount}"></span>
+                </a>
+
+                <!-- 답변 수정 버튼 -->
+                <a th:href="@{|/answer/modify/${answer.id}|}"
+                   class="btn btn-sm btn-outline-secondary"
+                   sec:authorize="isAuthenticated()"
+                   th:if="${answer.authorName != null and @commonUtil.getCurrentUsername(#authentication) == answer.authorName}"
+                   th:text="수정"></a>
+
+                <!-- 답변 삭제 버튼 -->
+                <a href="javascript:void(0);"
+                   th:data-uri="@{|/answer/${answer.id}|}"
+                   class="delete btn btn-sm btn-outline-secondary"
+                   sec:authorize="isAuthenticated()"
+                   th:if="${answer.authorName != null and @commonUtil.getCurrentUsername(#authentication) == answer.authorName}"
+                   th:text="삭제"></a>
+            </div>
+
+            <!--  답변 댓글 목록 -->
+            <div class="comments-section border-top mt-3 pt-3">
+                <h6>댓글</h6>
+                <ul class="list-group">
+                    <li th:each="comment : ${answer.comments}" class="list-group-item">
+                        <div th:id="|comment_${comment.id}|">
+                            <strong th:text="${comment.author.username}">작성자</strong>
+                            <small class="text-muted"
+                                   th:text="${#temporals.format(comment.createDate, 'yyyy-MM-dd HH:mm')}">작성일</small>
+                        </div>
+                        <p th:text="${comment.content}">댓글 내용</p>
+                    </li>
+                </ul>
+                <br>
+                <div sec:authorize="isAuthenticated()">
+                    <h6>댓글 작성</h6>
+                    <form class="comment-form mt-2" data-type="answer" th:data-id="${answer.id}"
+                          onsubmit="submitComment(event)">
+                        <!-- 에러 메시지 -->
+                        <div class="alert alert-danger error-message" style="display: none;"></div>
+
+                        <!-- 댓글 내용 입력 -->
+                        <div class="input-group input-group-sm">
+                            <textarea name="content" class="form-control" placeholder="댓글을 입력하세요"></textarea>
+                            <button class="btn btn-outline-secondary" type="submit">등록</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!--  답변 댓글 목록 끝 -->
+        </div>
+    </div>
+    <!-- 답변 반복 끝-->
+
+
+    <!-- 답변 작성-->
+    <form id="answerForm" th:object="${answerRequestDTO}" method="post" class="my-3" onsubmit="submitAnswer(event)">
+        <div id="errorMessages" class="alert alert-danger" style="display: none;"></div>
+
+        <!-- 익명 사용자일 경우 -->
+        <textarea sec:authorize="isAnonymous()" disabled th:field="*{content}" class="form-control"
+                  rows="10"></textarea>
+
+        <!-- 인증된 사용자일 경우 -->
+        <textarea sec:authorize="isAuthenticated()" name="content" th:field="*{content}" placeholder="답변을 등록하세요"
+                  class="form-control"
+                  rows="10"></textarea>
+
+        <input type="submit" value="답변등록" class="btn btn-primary my-2">
+    </form>
+
+    <!-- 페이징 네비게이션 -->
+    <div th:if="${question.answers.totalPages > 1}">
+        <ul class="pagination justify-content-center">
+            <!-- 이전 페이지 버튼 -->
+            <li class="page-item" th:classappend="${question.answers.first} ? 'disabled'">
+                <a class="page-link" href="javascript:void(0)"
+                   th:if="${!question.answers.first}"
+                   th:data-page="${question.answers.number - 1}">
+                    <span>이전</span>
+                </a>
+            </li>
+
+            <!-- 현재 페이지 표시 및 주변 페이지 출력 -->
+            <li th:each="page: ${#numbers.sequence(0, question.answers.totalPages-1)}"
+                th:if="${page >= question.answers.number-5 and page <= question.answers.number+5}"
+                th:classappend="${page == question.answers.number} ? 'active'"
+                class="page-item">
+                <a th:text="${page + 1}"
+                   class="page-link"
+                   href="javascript:void(0)"
+                   th:data-page="${page}"></a>
+            </li>
+
+            <!--  페이지 버튼 -->
+            <li class="page-item" th:classappend="${question.answers.last} ? 'disabled'">
+                <a class="page-link" href="javascript:void(0)"
+                   th:if="${!question.answers.last}"
+                   th:data-page="${question.answers.number + 1}">
+                    <span>다음</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 검색 및 페이징 폼 -->
+    <form th:action="@{|/question/detail/${question.id}|}" method="get" id="pagingForm">
+        <!-- 검색 키워드와 페이지 번호를 Hidden 필드로 전달 -->
+        <input type="hidden" id="page" name="page"
+               th:value="${question.answers.number != null ? question.answers.number : 0}">
+    </form>
+</div>
+
+<script layout:fragment="script" type='text/javascript'>
+
+    function showErrorMessage(errorDiv, message) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+
+
+    async function submitComment(event) {
+        event.preventDefault();
+
+        const form = event.target;
+        const errorDiv = form.querySelector('.error-message');
+        const questionId = window.location.pathname.split('/').pop();
+        errorDiv.style.display = 'none';
+
+        const content = form.querySelector('textarea[name="content"]').value.trim();
+        const targetType = form.dataset.type.toUpperCase(); // "question" 또는 "answer"
+        const targetId = form.dataset.id;    // 대상 ID
+
+        if (!content) {
+            showErrorMessage(errorDiv, "댓글 내용을 입력하세요.");
+            return;
+        }
+
+        const formData = {content, targetType, targetId};
+
+        try {
+            const url = `/api/v1/comment/${questionId}`;
+            const redirectUrl = await sendComment(url, formData);
+            if (redirectUrl) {
+                window.location.href = redirectUrl;
+                window.location.reload();
+            }
+        } catch (error) {
+            showErrorMessage(errorDiv, "댓글 작성 중 오류가 발생했습니다.");
+        }
+    }
+
+    async function sendComment(url, formData) {
+        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                [csrfHeader]: csrfToken
+            },
+            credentials: 'include',
+            body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            showErrorMessage(errorDiv, errorData.message);
+            return;
+        }
+
+        return response.headers.get('Location');
+    }
+
+    async function submitAnswer(event) {
+        event.preventDefault();
+        const errorDiv = document.getElementById('errorMessages');
+        const questionId = window.location.pathname.split('/').pop();
+
+        const formData = {
+            content: document.getElementById('content').value
+        };
+
+        try {
+            const response = await fetch(`/api/v1/answer/questions/${questionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                window.location.href = response.headers.get('Location');
+                window.location.reload();
+            } else {
+                const errorData = await response.json();
+                showErrorMessage(errorDiv, errorData.message);
+            }
+        } catch (error) {
+            showErrorMessage(errorDiv, "서버 오류가 발생했습니다.");
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        async function fetchAPI(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    ...options
+                });
+                return response;
+            } catch (error) {
+                console.error('API 요청 실패:', error);
+                throw error;
+            }
+        }
+
+        // 페이징 버튼 동작
+        const page_elements = document.getElementsByClassName("page-link");
+        Array.from(page_elements).forEach(function (element) {
+            element.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (this.dataset.page) {
+                    document.getElementById('page').value = this.dataset.page;
+                    document.getElementById('pagingForm').submit();
+                }
+            });
+        });
+
+        // 정렬 변경
+        const sortSelect = document.getElementById('sortSelect');
+        sortSelect.addEventListener('change', function () {
+            const sortForm = document.getElementById('sortForm');
+            sortForm.submit();
+        });
+
+        // 삭제 버튼 동작
+        const delete_elements = document.getElementsByClassName("delete");
+        Array.from(delete_elements).forEach(function (element) {
+            element.addEventListener('click', async function (e) {
+                e.preventDefault();
+                if (confirm("정말로 삭제하시겠습니까?")) {
+                    try {
+                        // URL에서 타입(question 또는 answer) 확인
+                        const uri = this.dataset.uri;
+                        const apiUri = uri.replace('/question/', '/api/v1/question/')
+                            .replace('/answer/', '/api/v1/answer/');
+
+                        const response = await fetchAPI(apiUri, {
+                            method: 'DELETE'
+                        });
+
+                        if (response.ok) {
+                            alert("삭제되었습니다.");
+                            if (uri.includes('/question/')) {
+                                window.location.href = '/';
+                            } else {
+                                window.location.reload();
+                            }
+                        } else {
+                            alert('삭제에 실패했습니다.');
+                        }
+                    } catch (error) {
+                        alert('서버 오류가 발생했습니다.');
+                    }
+                }
+            });
+        });
+
+        // 추천 버튼 동작
+        const recommend_elements = document.getElementsByClassName("recommend");
+        Array.from(recommend_elements).forEach(function (element) {
+            element.addEventListener('click', async function (e) {
+                e.preventDefault();
+                if (confirm("정말로 추천하시겠습니까?")) {
+                    try {
+                        // URL에서 타입(question 또는 answer) 확인
+                        const uri = this.dataset.uri;
+                        const apiUri = uri.replace('/question/', '/api/v1/question/')
+                            .replace('/answer/', '/api/v1/answer/');
+
+                        const response = await fetchAPI(apiUri, {
+                            method: 'POST'
+                        });
+
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            alert('추천에 실패했습니다.');
+                        }
+                    } catch (error) {
+                        alert('서버 오류가 발생했습니다.');
+                    }
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" type="text/css" th:href="@{/bootstrap.min.css}">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" type="text/css" th:href="@{/style.css}">
+
+    <!-- Mark Down -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+    <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+
+    <title>Hi, SBB</title>
+</head>
+<body>
+
+    <nav th:replace="~{common/navbar :: navbarFragment}"></nav>
+
+    <!-- 메인 컨테이너 -->
+    <main class="container my-4">
+        <!-- 페이지별 컨텐츠 -->
+        <div layout:fragment="content"></div>
+    </main>
+
+    <!-- 공통 푸터 -->
+<!--    <div th:replace="common/footer :: footer"></div>-->
+
+<script th:src="@{/bootstrap.min.js}"></script>
+
+<th:block layout:fragment="script"></th:block>
+</body>
+</html>

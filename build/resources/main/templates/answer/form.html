@@ -1,0 +1,58 @@
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<div layout:fragment="content" class="container">
+    <h5 class="my-3 border-bottom pb-2">답변 수정</h5>
+    <form id="answerForm" th:object="${answerRequestDTO}" method="post" onsubmit="submitForm(event)">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+        <div id="errorMessages" class="alert alert-danger" style="display: none;"></div>
+        <div class="mb-3">
+            <label for="content" class="form-label">내용</label>
+            <textarea id="content" th:field="*{content}" class="form-control" rows="10"></textarea>
+        </div>
+        <input type="submit" value="저장하기" class="btn btn-primary my-2">
+    </form>
+</div>
+<div layout:fragment="script">
+    <script th:inline="javascript">
+        async function submitForm(event) {
+            event.preventDefault();
+            const answerId = [[${answerRequestDTO.id}]];
+            const errorDiv = document.getElementById('errorMessages');
+            const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+            const formData = {
+                content: document.getElementById('content').value
+            };
+
+            try {
+                const url = `/api/v1/answer/${answerId}`;
+
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const responseText = await response.text();
+
+                if (responseText) {
+                    const result = JSON.parse(responseText);
+                    if (result.success) {
+                        const { questionId, answerId } = result.data;
+                        window.location.href = `/question/detail/${questionId}#answer_${answerId}`;
+                    } else {
+                        errorDiv.textContent = result.message;
+                        errorDiv.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorDiv.textContent = "서버 오류가 발생했습니다.";
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
+</div>
+</html>
